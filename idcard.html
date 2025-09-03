@@ -2,83 +2,221 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>EthSign ID Card Maker</title>
+  <title>EthSign Digital Signature Card</title>
   <style>
     body {
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #ffcc80, #ff9800);
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #ffcc66, #ff7a00);
-      color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
+      color: #333;
     }
     h1 {
-      margin-bottom: 15px;
+      color: white;
+      text-shadow: 1px 1px 5px #e65100;
     }
-    input {
-      padding: 8px;
-      margin: 5px;
+    .mode-buttons {
+      margin-bottom: 20px;
+    }
+    .mode-buttons button {
+      margin: 0 8px;
+      padding: 10px 20px;
       border: none;
       border-radius: 6px;
-      width: 200px;
-    }
-    button {
-      margin-top: 10px;
-      padding: 8px 15px;
-      border: none;
-      border-radius: 6px;
-      background: #000;
-      color: #ffcc66;
+      background: #ff9800;
+      color: white;
       font-weight: bold;
       cursor: pointer;
     }
     .card {
-      margin-top: 20px;
-      background: #12161c;
+      background: #fff3e0;
+      border-radius: 15px;
+      width: 400px;
+      height: 250px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    canvas {
+      border: 2px solid #ff9800;
+      border-radius: 10px;
+      background: #fffaf2;
+      cursor: crosshair;
+    }
+    button.save-btn {
+      margin-top: 10px;
+      padding: 8px 16px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .powered {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      font-size: 12px;
+      color: #ff9800;
+      font-weight: bold;
+    }
+    #guestbook {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      width: 100%;
+      max-width: 500px;
+    }
+    .sig-entry {
+      background: #fff3e0;
+      border: 2px solid #ff9800;
       border-radius: 12px;
-      padding: 20px;
-      width: 280px;
+      padding: 10px;
+      margin-bottom: 15px;
       text-align: center;
-      box-shadow: 0 0 15px rgba(255, 122, 0, 0.6);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     }
-    .card h2 {
-      color: #ff7a00;
+    .sig-entry img {
+      max-width: 100%;
+      border-radius: 8px;
+      border: 1px solid #ff9800;
     }
-    .card p {
-      margin: 5px 0;
+    .sig-entry button {
+      margin-top: 8px;
+      padding: 6px 12px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <h1>🍊 EthSign Identity Card</h1>
+  <h1>EthSign Digital Signature</h1>
 
-  <input type="text" id="name" placeholder="Enter your name">
-  <input type="text" id="handle" placeholder="Enter your @handle">
-  <input type="text" id="role" placeholder="Enter your role">
-  <button onclick="generateCard()">Generate Card</button>
+  <!-- Mode Switcher -->
+  <div class="mode-buttons">
+    <button onclick="showSingle()">Single Card</button>
+    <button onclick="showGuestbook()">Guestbook</button>
+  </div>
 
-  <div id="cardArea"></div>
+  <!-- Single Card Mode -->
+  <div id="singleCard" class="card">
+    <canvas id="sigCanvas" width="350" height="150"></canvas>
+    <button class="save-btn" onclick="saveSignature()">Save Signature</button>
+    <div class="powered">Powered by EthSign</div>
+  </div>
+
+  <!-- Guestbook Mode -->
+  <div id="guestbook">
+    <div class="card">
+      <canvas id="guestCanvas" width="350" height="150"></canvas>
+      <button class="save-btn" onclick="addGuestSignature()">Add Signature</button>
+      <div class="powered">Powered by EthSign</div>
+    </div>
+    <div id="signatures"></div>
+  </div>
 
   <script>
-    function generateCard() {
-      const name = document.getElementById('name').value;
-      const handle = document.getElementById('handle').value;
-      const role = document.getElementById('role').value;
-
-      const cardHTML = `
-        <div class="card">
-          <h2>${name || "Anonymous"}</h2>
-          <p>${handle || "@ethsign"}</p>
-          <p><em>${role || "Web3 Explorer"}</em></p>
-        </div>
-      `;
-
-      document.getElementById('cardArea').innerHTML = cardHTML;
+    // Switching modes
+    function showSingle() {
+      document.getElementById("singleCard").style.display = "flex";
+      document.getElementById("guestbook").style.display = "none";
     }
+    function showGuestbook() {
+      document.getElementById("singleCard").style.display = "none";
+      document.getElementById("guestbook").style.display = "flex";
+    }
+
+    // --- Drawing setup (works for both canvases) ---
+    function setupCanvas(canvasId) {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      let drawing = false;
+
+      canvas.addEventListener("mousedown", startDraw);
+      canvas.addEventListener("mouseup", endDraw);
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("touchstart", startDraw);
+      canvas.addEventListener("touchend", endDraw);
+      canvas.addEventListener("touchmove", draw);
+
+      function startDraw(e) {
+        drawing = true;
+        ctx.beginPath();
+        ctx.moveTo(getX(e), getY(e));
+      }
+      function endDraw() {
+        drawing = false;
+      }
+      function draw(e) {
+        if (!drawing) return;
+        ctx.lineWidth = 2;
+        ctx.lineCap = "round";
+        ctx.strokeStyle = "#000";
+        ctx.lineTo(getX(e), getY(e));
+        ctx.stroke();
+      }
+      function getX(e) {
+        return e.clientX ? e.clientX - canvas.getBoundingClientRect().left : e.touches[0].clientX - canvas.getBoundingClientRect().left;
+      }
+      function getY(e) {
+        return e.clientY ? e.clientY - canvas.getBoundingClientRect().top : e.touches[0].clientY - canvas.getBoundingClientRect().top;
+      }
+      return canvas;
+    }
+
+    const sigCanvas = setupCanvas("sigCanvas");
+    const guestCanvas = setupCanvas("guestCanvas");
+
+    // --- Single Mode ---
+    function saveSignature() {
+      const dataURL = sigCanvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.href = dataURL;
+      link.download = "ethsign_signature.png";
+      link.click();
+    }
+
+    // --- Guestbook Mode ---
+    function addGuestSignature() {
+      const dataURL = guestCanvas.toDataURL("image/png");
+      const container = document.getElementById("signatures");
+      const entry = document.createElement("div");
+      entry.classList.add("sig-entry");
+      entry.innerHTML = `
+        <p>New Guest Signature:</p>
+        <img src="${dataURL}" />
+        <br>
+        <button onclick="downloadImage('${dataURL}')">Download</button>
+      `;
+      container.appendChild(entry);
+
+      // clear canvas after save
+      const ctx = guestCanvas.getContext("2d");
+      ctx.clearRect(0, 0, guestCanvas.width, guestCanvas.height);
+    }
+
+    function downloadImage(dataURL) {
+      const link = document.createElement("a");
+      link.href = dataURL;
+      link.download = "ethsign_guest_signature.png";
+      link.click();
+    }
+
+    // default to Single mode
+    showSingle();
   </script>
 </body>
 </html>
