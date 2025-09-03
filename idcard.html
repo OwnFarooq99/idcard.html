@@ -129,7 +129,6 @@
   </div>
 
   <script>
-    // Switching modes
     function showSingle() {
       document.getElementById("singleCard").style.display = "flex";
       document.getElementById("guestbook").style.display = "none";
@@ -139,7 +138,6 @@
       document.getElementById("guestbook").style.display = "flex";
     }
 
-    // --- Drawing setup (works for both canvases) ---
     function setupCanvas(canvasId) {
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext("2d");
@@ -180,7 +178,6 @@
     const sigCanvas = setupCanvas("sigCanvas");
     const guestCanvas = setupCanvas("guestCanvas");
 
-    // --- Single Mode ---
     function saveSignature() {
       const dataURL = sigCanvas.toDataURL("image/png");
       const link = document.createElement("a");
@@ -189,7 +186,6 @@
       link.click();
     }
 
-    // --- Guestbook Mode ---
     function addGuestSignature() {
       const dataURL = guestCanvas.toDataURL("image/png");
       const container = document.getElementById("signatures");
@@ -203,7 +199,6 @@
       `;
       container.appendChild(entry);
 
-      // clear canvas after save
       const ctx = guestCanvas.getContext("2d");
       ctx.clearRect(0, 0, guestCanvas.width, guestCanvas.height);
     }
@@ -215,7 +210,6 @@
       link.click();
     }
 
-    // default to Single mode
     showSingle();
   </script>
 </body>
